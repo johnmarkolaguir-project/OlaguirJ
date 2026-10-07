@@ -1,57 +1,128 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Leaf Log
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A lightweight houseplant-care tracker built with Laravel. Log your plants, track when each one was last watered, and let Leaf Log flag the ones that are getting thirsty.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Dashboard** — total plants, thirsty count, and watered-today stats, a "Needs water" list, and a room chip cloud for quick filtering.
+- **Plant collection** — full CRUD with search by name/species (`?q=`) and filtering by room (`?room=`).
+- **Watering** — one-click "Water now" sets `last_watered_at` to today.
+- **Plant detail** — watering interval, last-watered date ("N days ago"), notes, and a Thirsty/Happy status badge.
+- **Tips** — a static care-tips page with a live thirsty-plant count.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Thirsty logic lives on the model: a plant is thirsty when it has never been watered or when `daysSinceWatering() >= water_every_days` (see `app/Models/Plant.php`).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Tech Stack
 
-## Learning Laravel
+- Laravel 13 on PHP ^8.3
+- Blade + Tailwind CSS v4 + Vite 8 (no SPA, no Inertia/Livewire)
+- SQLite (default), with `database` drivers for sessions, cache, and queues
+- Pest 5 for testing
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requirements
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP 8.3+
+- Composer
+- Node.js + npm (for Vite asset building)
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Setup
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### Quick start
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer setup
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+This installs Composer deps, copies `.env`, generates an app key, runs migrations, installs npm deps, and builds assets.
 
-## Contributing
+### Manual setup
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+npm install
+npm run build
+```
 
-## Code of Conduct
+SQLite is used by default — `database/database.sqlite` is created automatically by the migration setup. No extra database configuration is needed.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Optional seed data
 
-## Security Vulnerabilities
+```bash
+php artisan db:seed   # 10 plants (8 random + 2 named)
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Usage
+
+Start the dev stack (server, queue, logs, Vite together):
+
+```bash
+composer dev
+```
+
+Or run pieces separately:
+
+```bash
+php artisan serve      # http://localhost:8000
+npm run dev            # Vite asset server
+```
+
+### Pages
+
+| Method | URI | Description |
+|---|---|---|
+| GET | `/` | Dashboard: stats, thirsty list, room chips |
+| GET | `/tips` | Care tips + live thirsty count |
+| GET | `/plants` | Plant list; supports `?q=` search and `?room=` filter |
+| GET | `/plants/create` | New plant form |
+| POST | `/plants` | Create plant (validated by `PlantRequest`) |
+| GET | `/plants/{plant}` | Plant detail with Water/Edit/Delete actions |
+| GET | `/plants/{plant}/edit` | Edit plant form |
+| PUT/PATCH | `/plants/{plant}` | Update plant |
+| DELETE | `/plants/{plant}` | Delete plant |
+| POST | `/plants/{plant}/water` | Mark plant as watered today |
+
+### Validation rules
+
+Defined in `app/Http/Requests/PlantRequest.php`:
+
+- `name`, `species`, `room` — required, max 255 (room max 100)
+- `water_every_days` — required integer, 1–90 (defaults to 7 on the create form)
+- `last_watered_at` — optional date, not in the future
+- `notes` — optional, max 1000 characters
+
+## API
+
+There is no HTTP API — Leaf Log is a fully server-rendered Blade application. All interactions happen through the web routes listed above.
+
+## Testing
+
+```bash
+php artisan test --compact   # or: vendor/bin/pest
+```
+
+Feature coverage lives in `tests/Feature/PlantCareTest.php` (dashboard stats, filtering, CRUD, watering, tips). Tests run against an in-memory SQLite database.
+
+## Project Structure
+
+```
+app/
+  Http/Controllers/     DashboardController, PlantController
+  Http/Requests/        PlantRequest (validation)
+  Models/               Plant, User
+database/
+  factories/            PlantFactory (states: thirsty, watered)
+  migrations/           ... + create_plants_table
+resources/views/
+  layouts/              app layout with nav
+  dashboard, tips       main pages
+  plants/               index, create, edit, show, form
+  partials/             flash, plant-row
+routes/web.php          all routes
+tests/Feature/          PlantCareTest
+```
 
 ## License
 
